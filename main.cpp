@@ -10,10 +10,18 @@ extern "C" {
 #include"./SDL2-2.0.10/include/SDL_main.h"
 }
 
-#define SCR_WIDTH 600
-#define SCR_HEIGHT 400
 #define SNAKE_LENGTH 100
 #define TILE_SIZE 30
+
+// Changable parameters
+#define SCR_WIDTH 600
+#define SCR_HEIGHT 400
+#define POINT_PER_FOOD 1
+#define SPEED_UP 5
+#define SPEED_UP_FREQUENCY 5
+#define INITIAL_POS_X SCR_WIDTH/2
+#define INITIAL_POS_Y SCR_HEIGHT/2
+
 
 
 // Structs for storing information (positions, snake lenght etc)
@@ -181,13 +189,13 @@ void checkFoodEaten(Snake &snake, Point &food, int &points) {
 	if (checkCollision(food, snake, false)) {
 		addSnakePart(snake);
 		generateFood(food, snake);
-		points++;
+		points+= POINT_PER_FOOD;
 	}
 }
 
 // New Game (n)
 void newGame(Snake &snake, Point &food, int &frames, double &worldTime, double &fpsTimer, double &fps, int &t1, Uint32 &lastMove) {
-	snake = {{{SCR_WIDTH / 2, SCR_HEIGHT / 2}}, 1, SDLK_RIGHT};
+	snake = {{{INITIAL_POS_X, INITIAL_POS_Y}}, 1, SDLK_RIGHT};
 	generateFood(food, snake);
 	frames = 0;
 	worldTime = 0;
@@ -208,9 +216,9 @@ SDL_Surface* loadSurface(const char *path) {
 }
 
 void updatePoints(int &points, int &slowness, int &speed, int &lastMilestone) {
-	if (points > 0 && points % 5 == 0 && points != lastMilestone) {
-		if (slowness >= 10){
-			slowness -= 5;
+	if (points > 0 && points % SPEED_UP_FREQUENCY == 0 && points != lastMilestone) {
+		if (slowness >= SPEED_UP*2){
+			slowness -= SPEED_UP;
 			speed++;
 		}
 		lastMilestone = points;
@@ -224,15 +232,14 @@ extern "C"
 #endif
 int main(int argc, char **argv) {
 	int t1, t2, quit, frames, rc, points, lastMilestone, slowness, speed, gameover;
-	double delta, worldTime, fpsTimer, fps, distance;
+	double delta, worldTime, fpsTimer, fps;
 	SDL_Event event;
 	SDL_Surface *screen, *charset,  *snake, *food;
 	SDL_Texture *scrtex;
 	SDL_Window *window;
 	SDL_Renderer *renderer;
 
-	printf("Printf commands go here\n");
-
+	// initialization
 	if(SDL_Init(SDL_INIT_EVERYTHING) != 0) {
 		printf("SDL_Init error: %s\n", SDL_GetError());
 		return 1;
@@ -253,7 +260,7 @@ int main(int argc, char **argv) {
 
 	screen = SDL_CreateRGBSurface(0, SCR_WIDTH, SCR_HEIGHT, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
 	scrtex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, SCR_WIDTH, SCR_HEIGHT);
-
+	//
 	// turning off cursor
 	SDL_ShowCursor(SDL_DISABLE);
 
@@ -272,8 +279,9 @@ int main(int argc, char **argv) {
 		};
 	SDL_SetColorKey(charset, true, 0x000000);
 
-	Snake snakeInfo = {{{SCR_WIDTH / 2, SCR_HEIGHT / 2}}, 1, SDLK_RIGHT};
+	Snake snakeInfo = {{{INITIAL_POS_X, INITIAL_POS_Y}}, 1, SDLK_RIGHT};
 	Point foodInfo;
+	//Point redPoint;
 	generateFood(foodInfo, snakeInfo);
 	
 	char text[128];
@@ -283,16 +291,12 @@ int main(int argc, char **argv) {
 	int niebieski = SDL_MapRGB(screen->format, 0x11, 0x11, 0xCC);
 
 	t1 = SDL_GetTicks();
-	frames = 0;
-	fpsTimer = 0;
-	fps = 0;
-	quit = 0;
-	worldTime = 0;
+	frames = 0; fpsTimer = 0; fps = 0; worldTime = 0;
 	points = 0; lastMilestone = 0;
 	slowness = 100; // Increase value to slow down
 	speed = 1; // To indicate speed level
     Uint32 lastMove = SDL_GetTicks();
-	gameover = 0;
+	gameover = 0; quit = 0;
 
 	while(!quit) {
 		t2 = SDL_GetTicks();
@@ -322,14 +326,14 @@ int main(int argc, char **argv) {
 		drawRectangle(screen, 4, 4, SCR_WIDTH - 8, 50, czerwony, niebieski);
 		if (!gameover){
 		sprintf(text, "Elapsed time = %.1lf s  %.0lf fps. Points = %.2d. Speed = %.0d", worldTime, fps, points, speed);
-		drawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 10, text, charset);
+		drawString(screen, 4, 10, text, charset);
 		sprintf(text, "Esc - exit, n - new game, arrow keys - moving");
-		drawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 20, text, charset);
+		drawString(screen, 4, 20, text, charset);
 
 		sprintf(text, "Project by: ,Copyright 2025. ");
-		drawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 30, text, charset);
+		drawString(screen, screen->w - strlen(text)*8 -4 , 30, text, charset);
 		sprintf(text, "Implemented requirements: 1-4, A, B");	
-		drawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 40, text, charset);	
+		drawString(screen, screen->w - strlen(text)*8 -4 , 40, text, charset);	
 		}
 		else {
 			sprintf(text, "Game Over! Points = %.2d", points);
