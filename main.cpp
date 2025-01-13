@@ -13,7 +13,7 @@ extern "C" {
 #define SCR_WIDTH 600
 #define SCR_HEIGHT 400
 #define SNAKE_LENGTH 100
-#define TILE_SIZE 20
+#define TILE_SIZE 30
 
 
 // Structs for storing information (positions, snake lenght etc)
@@ -94,50 +94,100 @@ void drawRectangle(SDL_Surface *screen, int x, int y, int l, int k,
 
 // ------------- SNAKE FUNCTIONS -------------
 
-void moveSnake(Snake &snake, SDL_Surface *screen) {
+void moveSnake(Snake &snake) {
     for (int i = snake.length - 1; i > 0; --i) {
         snake.body[i] = snake.body[i - 1]; // movement
     }
     switch (snake.direction) { 
         case SDLK_UP: 
-            if (snake.body[1].y != snake.body[0].y - TILE_SIZE) {
-				snake.body[0].y -= TILE_SIZE;
-				}
-			else { snake.body[0].y += TILE_SIZE;}
+            snake.body[0].y -= TILE_SIZE;
             break;
         case SDLK_DOWN: 
-            if (snake.body[1].y != snake.body[0].y + TILE_SIZE) { snake.body[0].y += TILE_SIZE;}
-			else {snake.body[0].y -= TILE_SIZE;}
+            snake.body[0].y += TILE_SIZE;
             break;
         case SDLK_LEFT:
-            if (snake.body[1].x != snake.body[0].x - TILE_SIZE) { snake.body[0].x -= TILE_SIZE;}
-			else { snake.body[0].x += TILE_SIZE; }
+            snake.body[0].x -= TILE_SIZE;
             break;
         case SDLK_RIGHT: 
-            if (snake.body[1].x != snake.body[0].x + TILE_SIZE) { snake.body[0].x += TILE_SIZE;}
-			else { snake.body[0].x -= TILE_SIZE;}
+            snake.body[0].x += TILE_SIZE;
             break;
     }
+}
+
+void changeDirection(Snake &snake, int newDirection) {
+    // Prevent reversing direction
+    if ((snake.direction == SDLK_UP && newDirection == SDLK_DOWN) ||
+        (snake.direction == SDLK_DOWN && newDirection == SDLK_UP) ||
+        (snake.direction == SDLK_LEFT && newDirection == SDLK_RIGHT) ||
+        (snake.direction == SDLK_RIGHT && newDirection == SDLK_LEFT)) {
+        return;
+    }
+    snake.direction = newDirection;
+}
+
+void addSnakePart(Snake &snakeInfo) {
+	snakeInfo.body[snakeInfo.length] = snakeInfo.body[snakeInfo.length - 1];
+	snakeInfo.length++;
+}
+
+int forceTurn(Snake &snake) {
+    int dir = snake.direction;
+    int x = snake.body[0].x;
+    int y = snake.body[0].y;
+
+	if (x <= TILE_SIZE && dir != SDLK_UP && dir != SDLK_DOWN) { 
+		if (y<TILE_SIZE+31) { return dir = SDLK_DOWN; }
+		else { return dir = SDLK_UP; }
+	}
+	else if (x >= SCR_WIDTH - TILE_SIZE && dir != SDLK_DOWN && dir != SDLK_UP) {
+		if (y >= SCR_HEIGHT - TILE_SIZE) { return dir = SDLK_UP; }
+		else { return dir = SDLK_DOWN; }
+	}
+	if (y <= TILE_SIZE+32 && dir != SDLK_LEFT && dir != SDLK_RIGHT) {
+		if (x >= SCR_WIDTH - TILE_SIZE) { return dir = SDLK_LEFT; }
+		else { return dir = SDLK_RIGHT; }
+	}
+	else if (y >= SCR_HEIGHT - TILE_SIZE && dir != SDLK_RIGHT && dir != SDLK_LEFT) {
+		if (x <= TILE_SIZE) { return dir = SDLK_RIGHT; }
+		else { return dir = SDLK_LEFT; }
+	}
+
+    return dir;
 }
 
 
 // ------------- GAME FUNCTIONS -------------
 
-bool checkCollision(const Point &point, const Snake &snake) {
-    for (int i = 0; i < snake.length; ++i) {
-        if (point.x == snake.body[i].x && point.y == snake.body[i].y) return true; // true = collided
-    }
+// Collision-related Functions
+
+bool checkCollision(const Point &point, const Snake &snake, bool isSnake) {
+	int l = 1;
+	if (isSnake) {l = snake.length;}
+    for (int i = 0; i < l; ++i) {
+    if (((point.x >= snake.body[i].x-TILE_SIZE)
+	&& (point.x <= snake.body[i].x + TILE_SIZE))
+	&& ((point.y >= snake.body[i].y - TILE_SIZE)
+	&& (point.y <= snake.body[i].y + TILE_SIZE))) {return true;}} // true = collided
     return false;
 }
 
+// Food 
 void generateFood(Point &food, const Snake &snake) {
 	do {
         food.x = (rand() % (SCR_WIDTH / TILE_SIZE)) * TILE_SIZE;
         do{ food.y = (rand() % (SCR_HEIGHT / TILE_SIZE)) * TILE_SIZE;} while (food.y <= 32);
-    } while (checkCollision(food, snake));
+    } while (checkCollision(food, snake, true));
 }
 
+void checkFoodEaten(Snake &snake, Point &food, int &points) {
+	if (checkCollision(food, snake, false)) {
+		addSnakePart(snake);
+		generateFood(food, snake);
+		points++;
+	}
+}
 
+// New Game (n)
 void newGame(Snake &snake, Point &food, int &frames, double &worldTime, double &fpsTimer, double &fps, int &t1, Uint32 &lastMove) {
 	snake = {{{SCR_WIDTH / 2, SCR_HEIGHT / 2}}, 1, SDLK_RIGHT};
 	generateFood(food, snake);
@@ -149,6 +199,7 @@ void newGame(Snake &snake, Point &food, int &frames, double &worldTime, double &
 	lastMove = SDL_GetTicks();
 }
 
+// Loading BMPs
 SDL_Surface* loadSurface(const char *path) {
 	SDL_Surface* s = SDL_LoadBMP(path);
 	if (s == NULL) {
@@ -158,17 +209,24 @@ SDL_Surface* loadSurface(const char *path) {
 	return s;
 }
 
+// Game Over screen
+void gameOver(SDL_Surface *screen, SDL_Surface *charset, int x, int y) {
+	drawRectangle(screen, 4, 4, SCR_WIDTH - 8, 36, 0xFF0000, 0x1111CC);
+	char text[128];
+	sprintf(text, "Game Over! Press n to start a new game");
+	drawString(screen, x, y, text, charset);
+}
+
 // ------------- MAIN FUNCTION -------------
 
 #ifdef __cplusplus
 extern "C"
 #endif
 int main(int argc, char **argv) {
-	int t1, t2, quit, frames, rc;
+	int t1, t2, quit, frames, rc, points;
 	double delta, worldTime, fpsTimer, fps, distance, snakeslowness;
 	SDL_Event event;
-	SDL_Surface *screen, *charset;
-	SDL_Surface *snake, *food;
+	SDL_Surface *screen, *charset,  *snake, *food;
 	SDL_Texture *scrtex;
 	SDL_Window *window;
 	SDL_Renderer *renderer;
@@ -200,10 +258,10 @@ int main(int argc, char **argv) {
 	// turning off cursor
 	SDL_ShowCursor(SDL_DISABLE);
 
-	// loading cs8x8.bmp
+	// loading bmp
 	charset = loadSurface("./cs8x8.bmp"); //SDL_LoadBMP("./cs8x8.bmp");
-	snake = loadSurface("./snakebody.bmp");
 	food = loadSurface("./food.bmp");
+	snake = loadSurface("./snakebody.bmp");
 	if(charset == NULL || food == NULL || snake == NULL) {
 		printf("SDL_LoadBMP error: %s\n", SDL_GetError());
 		SDL_FreeSurface(screen);
@@ -231,6 +289,7 @@ int main(int argc, char **argv) {
 	fps = 0;
 	quit = 0;
 	worldTime = 0;
+	points = 0;
 	int slowness = 100; // Increase value to slow down
     Uint32 lastMove = SDL_GetTicks();
 
@@ -247,7 +306,9 @@ int main(int argc, char **argv) {
 
 		SDL_FillRect(screen, NULL, czarny);
 
-		drawSurface(screen, snake, snakeInfo.body[0].x, snakeInfo.body[0].y);
+		for (int i = 0; i < snakeInfo.length; i++) {
+			drawSurface(screen, snake, snakeInfo.body[i].x, snakeInfo.body[i].y);
+		}
 		drawSurface(screen, food, foodInfo.x, foodInfo.y);
 			    
 		fpsTimer += delta;
@@ -260,18 +321,18 @@ int main(int argc, char **argv) {
 		//  info text
 		drawRectangle(screen, 4, 4, SCR_WIDTH - 8, 36, czerwony, niebieski);
 		//            "template for the second project, elapsed time = %.1lf s  %.0lf frames / s"
-		sprintf(text, "Elapsed time = %.1lf s  %.0lf fps", worldTime, fps);
+		sprintf(text, "Elapsed time = %.1lf s  %.0lf fps. Points = %.2d", worldTime, fps, points);
 		drawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 10, text, charset);
 		//
 		sprintf(text, "Esc - exit, n - new game, arrows - moving");
 		drawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 26, text, charset);
 
 		SDL_UpdateTexture(scrtex, NULL, screen->pixels, screen->pitch);
-//		SDL_RenderClear(renderer);
+		SDL_RenderClear(renderer);
 		SDL_RenderCopy(renderer, scrtex, NULL, NULL);
 		SDL_RenderPresent(renderer);
 
-		// handling of events (if there were any)
+		// handling of events 
 		while(SDL_PollEvent(&event)) {
 			switch(event.type) {
 				case SDL_KEYDOWN:
@@ -279,11 +340,10 @@ int main(int argc, char **argv) {
 					else if(event.key.keysym.sym == SDLK_n) {
 						newGame(snakeInfo, foodInfo, frames, fpsTimer, fps, worldTime, t1, lastMove);
 						}
-					else if(event.key.keysym.sym == SDLK_LEFT) snakeInfo.direction = SDLK_LEFT;
-					else if(event.key.keysym.sym == SDLK_RIGHT) snakeInfo.direction = SDLK_RIGHT;
-					else if(event.key.keysym.sym == SDLK_UP) snakeInfo.direction = SDLK_UP;
-					else if(event.key.keysym.sym == SDLK_DOWN) snakeInfo.direction = SDLK_DOWN;
-
+					else if(event.key.keysym.sym == SDLK_LEFT) changeDirection(snakeInfo, SDLK_LEFT);
+            		else if(event.key.keysym.sym == SDLK_RIGHT) changeDirection(snakeInfo, SDLK_RIGHT);
+            		else if(event.key.keysym.sym == SDLK_UP) changeDirection(snakeInfo, SDLK_UP);
+            		else if(event.key.keysym.sym == SDLK_DOWN) changeDirection(snakeInfo, SDLK_DOWN);
 					break;
 				case SDL_QUIT:
 					quit = 1;
@@ -292,7 +352,15 @@ int main(int argc, char **argv) {
 			};
 		frames++;
 		 if (SDL_GetTicks() - lastMove > slowness) {
-            moveSnake(snakeInfo, screen);
+			moveSnake(snakeInfo);
+			if (snakeInfo.body[0].x < TILE_SIZE || snakeInfo.body[0].x >= SCR_WIDTH-TILE_SIZE || snakeInfo.body[0].y < TILE_SIZE+32 || snakeInfo.body[0].y >= SCR_HEIGHT-TILE_SIZE){
+				snakeInfo.direction= forceTurn(snakeInfo);
+			}
+			
+			checkFoodEaten(snakeInfo, foodInfo, points);
+			if (checkCollision(snakeInfo.body[0], snakeInfo, true)){
+				gameOver(screen, charset, SCR_WIDTH / 2 - 40, SCR_HEIGHT / 2);
+			}
             lastMove = SDL_GetTicks();
         }
         };
