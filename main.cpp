@@ -21,6 +21,9 @@ extern "C" {
 #define SPEED_UP_FREQUENCY 5
 #define INITIAL_POS_X SCR_WIDTH/2
 #define INITIAL_POS_Y SCR_HEIGHT/2
+#define RED_DOT_SPAWN_CHANCE 10
+#define SHORTEN_SNAKE_LENGHT 1
+#define RED_DOT_TIME 5
 
 
 
@@ -143,14 +146,14 @@ int forceTurn(Snake &snake) {
     int y = snake.body[0].y;
 
 	if (x <= TILE_SIZE && dir != SDLK_UP && dir != SDLK_DOWN) { 
-		if (y<TILE_SIZE+31) { return dir = SDLK_DOWN; }
+		if (y<TILE_SIZE+50) { return dir = SDLK_DOWN; }
 		else { return dir = SDLK_UP; }
 	}
 	else if (x >= SCR_WIDTH - TILE_SIZE && dir != SDLK_DOWN && dir != SDLK_UP) {
 		if (y >= SCR_HEIGHT - TILE_SIZE) { return dir = SDLK_UP; }
 		else { return dir = SDLK_DOWN; }
 	}
-	if (y <= TILE_SIZE+50&& dir != SDLK_LEFT && dir != SDLK_RIGHT) {
+	if (y <= TILE_SIZE+50 && dir != SDLK_LEFT && dir != SDLK_RIGHT) {
 		if (x >= SCR_WIDTH - TILE_SIZE) { return dir = SDLK_LEFT; }
 		else { return dir = SDLK_RIGHT; }
 	}
@@ -180,9 +183,15 @@ bool checkCollision(const Point &point, const Snake &snake, bool isSnake) {
 // Food 
 void generateFood(Point &food, const Snake &snake) {
 	do {
-        food.x = (rand() % (SCR_WIDTH / TILE_SIZE)) * TILE_SIZE;
-        do{ food.y = (rand() % (SCR_HEIGHT / TILE_SIZE)) * TILE_SIZE;} while (food.y <= TILE_SIZE+50);
+        do {food.x = (rand() % (SCR_WIDTH / TILE_SIZE)) * TILE_SIZE;} while (food.x <= TILE_SIZE);
+        do{ food.y = (rand() % (SCR_HEIGHT / TILE_SIZE)) * TILE_SIZE - TILE_SIZE;} while (food.y <= TILE_SIZE+50);
     } while (checkCollision(food, snake, true));
+}
+
+void deSpawn(Point &redDot, SDL_Surface *screen, int czarny) {
+	drawRectangle(screen, redDot.x, redDot.y, TILE_SIZE, TILE_SIZE, czarny, czarny);
+	redDot.x = -10;
+	redDot.y = -10;
 }
 
 void checkFoodEaten(Snake &snake, Point &food, int &points) {
@@ -190,6 +199,31 @@ void checkFoodEaten(Snake &snake, Point &food, int &points) {
 		addSnakePart(snake);
 		generateFood(food, snake);
 		points+= POINT_PER_FOOD;
+	}
+}
+
+void redDotFunction(Point &redDot, int &redDotSpawn, double &redDotTimer, Snake &snakeInfo, int &slowness, int &speed, SDL_Surface *screen, int czarny, int czerwony) {
+	if (redDotTimer <= 0) {
+			redDotSpawn = 0;
+			redDotTimer = RED_DOT_TIME;
+			deSpawn(redDot, screen, czarny);
+		}
+	if (redDotSpawn==0 && (rand() % RED_DOT_SPAWN_CHANCE) == 1){
+		redDotSpawn = 1;
+		printf("Red Dot Spawned\n"); // doesnt work?
+		generateFood(redDot, snakeInfo);
+	}
+	if (checkCollision(redDot, snakeInfo, false)&& redDotTimer > 0){
+		redDotTimer = RED_DOT_TIME;
+		int r = rand() % 2; 
+		if (r == 0) { // shortening the snake
+			snakeInfo.length -= SHORTEN_SNAKE_LENGHT;
+		}
+		else { // slows down
+			slowness += SPEED_UP*SHORTEN_SNAKE_LENGHT;
+			speed -= SHORTEN_SNAKE_LENGHT;
+		}
+		redDotSpawn = 0;
 	}
 }
 
@@ -231,10 +265,10 @@ void updatePoints(int &points, int &slowness, int &speed, int &lastMilestone) {
 extern "C"
 #endif
 int main(int argc, char **argv) {
-	int t1, t2, quit, frames, rc, points, lastMilestone, slowness, speed, gameover;
+	int t1, t2, quit, frames, rc, redDotSpawn, points, lastMilestone, slowness, speed, gameover;
 	double delta, worldTime, fpsTimer, fps;
 	SDL_Event event;
-	SDL_Surface *screen, *charset,  *snake, *food;
+	SDL_Surface *screen, *charset,  *snake, *food, *reddot;
 	SDL_Texture *scrtex;
 	SDL_Window *window;
 	SDL_Renderer *renderer;
@@ -268,7 +302,8 @@ int main(int argc, char **argv) {
 	charset = loadSurface("./cs8x8.bmp"); //SDL_LoadBMP("./cs8x8.bmp");
 	food = loadSurface("./food.bmp");
 	snake = loadSurface("./snakebody.bmp");
-	if(charset == NULL || food == NULL || snake == NULL) {
+	reddot = loadSurface("./reddot.bmp");
+	if(charset == NULL || food == NULL || snake == NULL || reddot == NULL) {
 		printf("SDL_LoadBMP error: %s\n", SDL_GetError());
 		SDL_FreeSurface(screen);
 		SDL_DestroyTexture(scrtex);
@@ -281,7 +316,7 @@ int main(int argc, char **argv) {
 
 	Snake snakeInfo = {{{INITIAL_POS_X, INITIAL_POS_Y}}, 1, SDLK_RIGHT};
 	Point foodInfo;
-	//Point redPoint;
+	Point redDot; double redDotTimer = RED_DOT_TIME; redDotSpawn = 0;
 	generateFood(foodInfo, snakeInfo);
 	
 	char text[128];
@@ -307,12 +342,17 @@ int main(int argc, char **argv) {
 		t1 = t2;
 
 		worldTime += delta;
+		if (redDotSpawn){redDotTimer -= delta;}
 
 		SDL_FillRect(screen, NULL, czarny);
 
 		drawSurface(screen, food, foodInfo.x, foodInfo.y);
 		for (int i = 0; i < snakeInfo.length; i++) {
 			drawSurface(screen, snake, snakeInfo.body[i].x, snakeInfo.body[i].y);
+		}
+		if (redDotSpawn){
+			drawSurface(screen, reddot, redDot.x, redDot.y);
+			drawRectangle(screen, 0, 52, (SCR_WIDTH/RED_DOT_TIME)*redDotTimer , 4, czerwony, czerwony);	
 		}
 		    
 		fpsTimer += delta;
@@ -348,6 +388,7 @@ int main(int argc, char **argv) {
 		SDL_RenderCopy(renderer, scrtex, NULL, NULL);
 		SDL_RenderPresent(renderer);
 
+
 		// handling of events 
 		while(SDL_PollEvent(&event)) {
 			switch(event.type) {
@@ -370,10 +411,12 @@ int main(int argc, char **argv) {
 		frames++;
 		if (!gameover && SDL_GetTicks() - lastMove > slowness) {
 			moveSnake(snakeInfo);
-			if (snakeInfo.body[0].x < TILE_SIZE || snakeInfo.body[0].x >= SCR_WIDTH-TILE_SIZE || snakeInfo.body[0].y < TILE_SIZE+50|| snakeInfo.body[0].y >= SCR_HEIGHT-TILE_SIZE){
+			if (snakeInfo.body[0].x < TILE_SIZE || snakeInfo.body[0].x >= SCR_WIDTH-TILE_SIZE || snakeInfo.body[0].y < TILE_SIZE+45|| snakeInfo.body[0].y >= SCR_HEIGHT-TILE_SIZE){
 				snakeInfo.direction= forceTurn(snakeInfo);
 			}
 			checkFoodEaten(snakeInfo, foodInfo, points);
+			redDotFunction(redDot, redDotSpawn, redDotTimer, snakeInfo, slowness, speed, screen, czarny, czerwony);
+		
 			if (snakeInfo.length > 2 && checkCollision(snakeInfo.body[0], snakeInfo, true)){ gameover = 1; }
             lastMove = SDL_GetTicks();
         }
