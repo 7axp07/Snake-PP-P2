@@ -202,7 +202,7 @@ void checkFoodEaten(Snake &snake, Point &food, int &points) {
 	}
 }
 
-void redDotFunction(Point &redDot, int &redDotSpawn, double &redDotTimer, Snake &snakeInfo, int &slowness, unsigned int &speed, SDL_Surface *screen, int czarny, int czerwony) {
+void redDotFunction(Point &redDot, int &redDotSpawn, double &redDotTimer, Snake &snakeInfo, int &slowness, unsigned int &speed, SDL_Surface *screen, int czarny, int czerwony, int &points) {
 	if (redDotTimer <= 0) {
 			redDotSpawn = 0;
 			redDotTimer = RED_DOT_TIME;
@@ -215,6 +215,7 @@ void redDotFunction(Point &redDot, int &redDotSpawn, double &redDotTimer, Snake 
 	}
 	if (checkCollision(redDot, snakeInfo, false)&& redDotTimer > 0){
 		redDotTimer = RED_DOT_TIME;
+		points++;
 		int r = rand() % 2; 
 		if (snakeInfo.length>1 && r == 0) { // shortening the snake
 			snakeInfo.length -= SHORTEN_SNAKE_LENGHT;
@@ -225,6 +226,26 @@ void redDotFunction(Point &redDot, int &redDotSpawn, double &redDotTimer, Snake 
 		}
 		redDotSpawn = 0;
 	}
+}
+
+void drawInfoText(SDL_Surface *screen, SDL_Surface *charset, char *text, double &worldTime, double &fps, int &points, unsigned int &speed, int &gameover){
+		if (!gameover){
+		sprintf(text, "Elapsed time = %.1lf s  %.0lf fps. Points = %.2d. Speed = %.0d", worldTime, fps, points, speed);
+		drawString(screen, 4, 10, text, charset);
+		sprintf(text, "Esc - exit, n - new game, arrow keys - moving");
+		drawString(screen, 4, 20, text, charset);
+
+		sprintf(text, "Project by: ,Copyright 2025. ");
+		drawString(screen, screen->w - strlen(text)*8 -4 , 30, text, charset);
+		sprintf(text, "Implemented requirements: 1-4, A, B, C, D");	
+		drawString(screen, screen->w - strlen(text)*8 -4 , 40, text, charset);	
+		}
+		else {
+			sprintf(text, "Game Over! Points = %.2d", points);
+			drawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 20, text, charset);
+			sprintf(text,"Press n to start a new game or Esc to exit");
+			drawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 30, text, charset);
+		}
 }
 
 // New Game (n)
@@ -265,7 +286,7 @@ void updatePoints(int &points, int &slowness, unsigned int &speed, int &lastMile
 extern "C"
 #endif
 int main(int argc, char **argv) {
-	int t1, t2, quit, frames, rc, redDotSpawn, points, lastMilestone, slowness, gameover;
+	int t1, t2, quit, frames, rc, points, lastMilestone, slowness, gameover;
 	unsigned int speed;
 	double delta, worldTime, fpsTimer, fps;
 	SDL_Event event;
@@ -274,19 +295,10 @@ int main(int argc, char **argv) {
 	SDL_Window *window;
 	SDL_Renderer *renderer;
 
-	// initialization
-	if(SDL_Init(SDL_INIT_EVERYTHING) != 0) {
-		printf("SDL_Init error: %s\n", SDL_GetError());
-		return 1;
-	}
-
+	if(SDL_Init(SDL_INIT_EVERYTHING) != 0) { printf("SDL_Init error: %s\n", SDL_GetError()); return 1;}
 	rc = SDL_CreateWindowAndRenderer(SCR_WIDTH, SCR_HEIGHT, 0,
 	                                 &window, &renderer);
-	if(rc != 0) {
-		SDL_Quit();
-		printf("SDL_CreateWindowAndRenderer error: %s\n", SDL_GetError());
-		return 1;
-		};
+	if(rc != 0) { SDL_Quit(); printf("SDL_CreateWindowAndRenderer error: %s\n", SDL_GetError()); return 1; };
 	
 	SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "linear");
 	SDL_RenderSetLogicalSize(renderer, SCR_WIDTH, SCR_HEIGHT);
@@ -295,7 +307,6 @@ int main(int argc, char **argv) {
 
 	screen = SDL_CreateRGBSurface(0, SCR_WIDTH, SCR_HEIGHT, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
 	scrtex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, SCR_WIDTH, SCR_HEIGHT);
-	//
 	// turning off cursor
 	SDL_ShowCursor(SDL_DISABLE);
 
@@ -315,9 +326,10 @@ int main(int argc, char **argv) {
 		};
 	SDL_SetColorKey(charset, true, 0x000000);
 
+	//creating initial snake and food
 	Snake snakeInfo = {{{INITIAL_POS_X, INITIAL_POS_Y}}, 1, SDLK_RIGHT};
 	Point foodInfo;
-	Point redDot; double redDotTimer = RED_DOT_TIME; redDotSpawn = 0;
+	Point redDot; double redDotTimer = RED_DOT_TIME; int redDotSpawn = 0;
 	generateFood(foodInfo, snakeInfo);
 	
 	char text[128];
@@ -365,23 +377,7 @@ int main(int argc, char **argv) {
 
 		//  info text
 		drawRectangle(screen, 4, 4, SCR_WIDTH - 8, 50, czerwony, niebieski);
-		if (!gameover){
-		sprintf(text, "Elapsed time = %.1lf s  %.0lf fps. Points = %.2d. Speed = %.0d", worldTime, fps, points, speed);
-		drawString(screen, 4, 10, text, charset);
-		sprintf(text, "Esc - exit, n - new game, arrow keys - moving");
-		drawString(screen, 4, 20, text, charset);
-
-		sprintf(text, "Project by: ,Copyright 2025. ");
-		drawString(screen, screen->w - strlen(text)*8 -4 , 30, text, charset);
-		sprintf(text, "Implemented requirements: 1-4, A, B");	
-		drawString(screen, screen->w - strlen(text)*8 -4 , 40, text, charset);	
-		}
-		else {
-			sprintf(text, "Game Over! Points = %.2d", points);
-			drawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 20, text, charset);
-			sprintf(text,"Press n to start a new game or Esc to exit");
-			drawString(screen, screen->w / 2 - strlen(text) * 8 / 2, 30, text, charset);
-		}
+		drawInfoText(screen, charset, text, worldTime, fps, points, speed, gameover);
 		updatePoints(points, slowness, speed, lastMilestone);
 			
 		SDL_UpdateTexture(scrtex, NULL, screen->pixels, screen->pitch);
@@ -416,7 +412,7 @@ int main(int argc, char **argv) {
 				snakeInfo.direction= forceTurn(snakeInfo);
 			}
 			checkFoodEaten(snakeInfo, foodInfo, points);
-			redDotFunction(redDot, redDotSpawn, redDotTimer, snakeInfo, slowness, speed, screen, czarny, czerwony);
+			redDotFunction(redDot, redDotSpawn, redDotTimer, snakeInfo, slowness, speed, screen, czarny, czerwony, points);
 		
 			if (snakeInfo.length > 2 && checkCollision(snakeInfo.body[0], snakeInfo, true)){ gameover = 1; }
             lastMove = SDL_GetTicks();
