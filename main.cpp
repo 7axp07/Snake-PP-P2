@@ -14,8 +14,8 @@ extern "C" {
 #define TILE_SIZE 30
 
 // Changable parameters
-#define SCR_WIDTH 600
-#define SCR_HEIGHT 400
+#define SCR_WIDTH 800
+#define SCR_HEIGHT 600
 #define POINT_PER_FOOD 1
 #define SPEED_UP 5
 #define SPEED_UP_FREQUENCY 5
@@ -202,7 +202,7 @@ void checkFoodEaten(Snake &snake, Point &food, int &points) {
 	}
 }
 
-void redDotFunction(Point &redDot, int &redDotSpawn, double &redDotTimer, Snake &snakeInfo, int &slowness, int &speed, SDL_Surface *screen, int czarny, int czerwony) {
+void redDotFunction(Point &redDot, int &redDotSpawn, double &redDotTimer, Snake &snakeInfo, int &slowness, unsigned int &speed, SDL_Surface *screen, int czarny, int czerwony) {
 	if (redDotTimer <= 0) {
 			redDotSpawn = 0;
 			redDotTimer = RED_DOT_TIME;
@@ -216,12 +216,12 @@ void redDotFunction(Point &redDot, int &redDotSpawn, double &redDotTimer, Snake 
 	if (checkCollision(redDot, snakeInfo, false)&& redDotTimer > 0){
 		redDotTimer = RED_DOT_TIME;
 		int r = rand() % 2; 
-		if (r == 0) { // shortening the snake
+		if (snakeInfo.length>1 && r == 0) { // shortening the snake
 			snakeInfo.length -= SHORTEN_SNAKE_LENGHT;
 		}
 		else { // slows down
 			slowness += SPEED_UP*SHORTEN_SNAKE_LENGHT;
-			speed -= SHORTEN_SNAKE_LENGHT;
+			speed == 1 ? speed = 1 : speed -= SHORTEN_SNAKE_LENGHT;
 		}
 		redDotSpawn = 0;
 	}
@@ -249,7 +249,7 @@ SDL_Surface* loadSurface(const char *path) {
 	return s;
 }
 
-void updatePoints(int &points, int &slowness, int &speed, int &lastMilestone) {
+void updatePoints(int &points, int &slowness, unsigned int &speed, int &lastMilestone) {
 	if (points > 0 && points % SPEED_UP_FREQUENCY == 0 && points != lastMilestone) {
 		if (slowness >= SPEED_UP*2){
 			slowness -= SPEED_UP;
@@ -265,7 +265,8 @@ void updatePoints(int &points, int &slowness, int &speed, int &lastMilestone) {
 extern "C"
 #endif
 int main(int argc, char **argv) {
-	int t1, t2, quit, frames, rc, redDotSpawn, points, lastMilestone, slowness, speed, gameover;
+	int t1, t2, quit, frames, rc, redDotSpawn, points, lastMilestone, slowness, gameover;
+	unsigned int speed;
 	double delta, worldTime, fpsTimer, fps;
 	SDL_Event event;
 	SDL_Surface *screen, *charset,  *snake, *food, *reddot;
