@@ -18,7 +18,7 @@ extern "C" {
 #define SCR_HEIGHT 600
 #define POINT_PER_FOOD 1
 #define SPEED_UP 5
-#define SPEED_UP_FREQUENCY 5
+#define SPEED_UP_FREQUENCY 5 // in seconds
 #define INITIAL_POS_X SCR_WIDTH/2
 #define INITIAL_POS_Y SCR_HEIGHT/2
 #define RED_DOT_SPAWN_CHANCE 10
@@ -161,7 +161,6 @@ int forceTurn(Snake &snake) {
 		if (x <= TILE_SIZE) { return dir = SDLK_RIGHT; }
 		else { return dir = SDLK_LEFT; }
 	}
-
     return dir;
 }
 
@@ -180,7 +179,7 @@ bool checkCollision(const Point &point, const Snake &snake, bool isSnake) {
     return false;
 }
 
-// Food 
+// Food related functions (Red & Blue Dots)
 void generateFood(Point &food, const Snake &snake) {
 	do {
         do {food.x = (rand() % (SCR_WIDTH / TILE_SIZE)) * TILE_SIZE;} while (food.x <= TILE_SIZE);
@@ -228,6 +227,17 @@ void redDotFunction(Point &redDot, int &redDotSpawn, double &redDotTimer, Snake 
 	}
 }
 
+void checkSpeedup(double &worldTime, unsigned int &speed, int &slowness, double &lastSpeedupTime) {
+    if (worldTime - lastSpeedupTime >= SPEED_UP_FREQUENCY) {
+        slowness -= SPEED_UP;
+        speed++;
+        lastSpeedupTime = worldTime; // Update the last speedup time
+        printf("Speed up! %d\n", speed);
+    }
+}
+
+// info text
+
 void drawInfoText(SDL_Surface *screen, SDL_Surface *charset, char *text, double &worldTime, double &fps, int &points, unsigned int &speed, int &gameover){
 		if (!gameover){
 		sprintf(text, "Elapsed time = %.1lf s  %.0lf fps. Points = %.2d. Speed = %.0d", worldTime, fps, points, speed);
@@ -270,15 +280,7 @@ SDL_Surface* loadSurface(const char *path) {
 	return s;
 }
 
-void updatePoints(int &points, int &slowness, unsigned int &speed, int &lastMilestone) {
-	if (points > 0 && points % SPEED_UP_FREQUENCY == 0 && points != lastMilestone) {
-		if (slowness >= SPEED_UP*2){
-			slowness -= SPEED_UP;
-			speed++;
-		}
-		lastMilestone = points;
-	}
-}
+//
 
 // ------------- MAIN FUNCTION -------------
 
@@ -286,9 +288,9 @@ void updatePoints(int &points, int &slowness, unsigned int &speed, int &lastMile
 extern "C"
 #endif
 int main(int argc, char **argv) {
-	int t1, t2, quit, frames, rc, points, lastMilestone, slowness, gameover;
+	int t1, t2, quit, frames, rc, points, slowness, gameover;
 	unsigned int speed;
-	double delta, worldTime, fpsTimer, fps;
+	double delta, worldTime, lastSpeedup, fpsTimer, fps;
 	SDL_Event event;
 	SDL_Surface *screen, *charset,  *snake, *food, *reddot;
 	SDL_Texture *scrtex;
@@ -339,8 +341,8 @@ int main(int argc, char **argv) {
 	int niebieski = SDL_MapRGB(screen->format, 0x11, 0x11, 0xCC);
 
 	t1 = SDL_GetTicks();
-	frames = 0; fpsTimer = 0; fps = 0; worldTime = 0;
-	points = 0; lastMilestone = 0;
+	frames = 0; fpsTimer = 0; fps = 0; worldTime = 0; lastSpeedup = 0;
+	points = 0; 
 	slowness = 100; // Increase value to slow down
 	speed = 1; // To indicate speed level
     Uint32 lastMove = SDL_GetTicks();
@@ -378,12 +380,13 @@ int main(int argc, char **argv) {
 		//  info text
 		drawRectangle(screen, 4, 4, SCR_WIDTH - 8, 50, czerwony, niebieski);
 		drawInfoText(screen, charset, text, worldTime, fps, points, speed, gameover);
-		updatePoints(points, slowness, speed, lastMilestone);
 			
 		SDL_UpdateTexture(scrtex, NULL, screen->pixels, screen->pitch);
 		SDL_RenderClear(renderer);
 		SDL_RenderCopy(renderer, scrtex, NULL, NULL);
 		SDL_RenderPresent(renderer);
+
+		checkSpeedup(worldTime, speed, slowness, lastSpeedup);
 
 
 		// handling of events 
