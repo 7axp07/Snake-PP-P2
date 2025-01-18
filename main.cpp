@@ -22,6 +22,7 @@ extern "C" {
 #define INITIAL_POS_X SCR_WIDTH/2
 #define INITIAL_POS_Y SCR_HEIGHT/2
 #define RED_DOT_SPAWN_CHANCE 10
+#define INITIAL_LENGTH 2
 #define SHORTEN_SNAKE_LENGHT 1
 #define RED_DOT_TIME 5
 
@@ -209,7 +210,6 @@ void redDotFunction(Point &redDot, int &redDotSpawn, double &redDotTimer, Snake 
 		}
 	if (redDotSpawn==0 && (rand() % RED_DOT_SPAWN_CHANCE) == 1){
 		redDotSpawn = 1;
-		printf("Red Dot Spawned\n"); // doesnt work?
 		generateFood(redDot, snakeInfo);
 	}
 	if (checkCollision(redDot, snakeInfo, false)&& redDotTimer > 0){
@@ -232,7 +232,6 @@ void checkSpeedup(double &worldTime, unsigned int &speed, int &slowness, double 
         slowness -= SPEED_UP;
         speed++;
         lastSpeedupTime = worldTime; // Update the last speedup time
-        printf("Speed up! %d\n", speed);
     }
 }
 
@@ -260,7 +259,7 @@ void drawInfoText(SDL_Surface *screen, SDL_Surface *charset, char *text, double 
 
 // New Game (n)
 void newGame(Snake &snake, Point &food, int &frames, double &worldTime, double &fpsTimer, double &fps, int &t1, Uint32 &lastMove) {
-	snake = {{{INITIAL_POS_X, INITIAL_POS_Y}}, 1, SDLK_RIGHT};
+	snake = {{{INITIAL_POS_X, INITIAL_POS_Y}}, INITIAL_LENGTH, SDLK_RIGHT};
 	generateFood(food, snake);
 	frames = 0;
 	worldTime = 0;
@@ -329,7 +328,7 @@ int main(int argc, char **argv) {
 	SDL_SetColorKey(charset, true, 0x000000);
 
 	//creating initial snake and food
-	Snake snakeInfo = {{{INITIAL_POS_X, INITIAL_POS_Y}}, 1, SDLK_RIGHT};
+	Snake snakeInfo = {{{INITIAL_POS_X, INITIAL_POS_Y}}, INITIAL_LENGTH, SDLK_RIGHT};
 	Point foodInfo;
 	Point redDot; double redDotTimer = RED_DOT_TIME; int redDotSpawn = 0;
 	generateFood(foodInfo, snakeInfo);
@@ -345,16 +344,12 @@ int main(int argc, char **argv) {
 	points = 0; 
 	slowness = 100; // Increase value to slow down
 	speed = 1; // To indicate speed level
-    Uint32 lastMove = SDL_GetTicks();
+    Uint32 lastMove = SDL_GetTicks(); // For appropriate movement 
 	gameover = 0; quit = 0;
 
 	while(!quit) {
 		t2 = SDL_GetTicks();
-		// here t2-t1 is the time in milliseconds since
-		// the last screen was drawn
-		// delta is the same time in seconds
-		delta = (t2 - t1) * 0.001;
-		t1 = t2;
+		delta = (t2 - t1) * 0.001; t1 = t2;
 
 		worldTime += delta;
 		if (redDotSpawn){redDotTimer -= delta;}

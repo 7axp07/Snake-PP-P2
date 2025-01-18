@@ -1,4 +1,0 @@
-[ZoneTransfer]
-ZoneId=3
-ReferrerUrl=https://cloudconvert.com/
-HostUrl=https://cloudconvert-files.s3.eu-central-1.amazonaws.com/c4126f02-20af-43ec-8d1f-09f7cf4878dc/snakebody.bmp?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIAI2WCZ54772T33JEQ%2F20250112%2Feu-central-1%2Fs3%2Faws4_request&X-Amz-Date=20250112T163431Z&X-Amz-Expires=86400&X-Amz-Signature=a410bd013341de6688eed02173cb2bf3bf2946b2e0c56765129ba1e9ce5d5bb2&X-Amz-SignedHeaders=host&response-content-disposition=attachment%3B%20filename%3D%22snakebody.bmp%22&response-content-type=image%2Fbmp&x-id=GetObject
